@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clippo — Transforme tes vidéos YouTube en clips viraux</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  :root{
+    --bg: #0E1116;
+    --surface: #161A21;
+    --surface-2: #1E232C;
+    --border: #2A303B;
+    --text: #F2F0EA;
+    --text-dim: #9AA1AC;
+    --wave: #00AEEF;
+    --orange: #FF7A00;
+    --green: #00D9A3;
+  }
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  html{ scroll-behavior: smooth; }
+  body{
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Manrope', sans-serif;
+    line-height: 1.5;
+    overflow-x: hidden;
+  }
+  h1,h2,h3, .display{
+    font-family: 'Bebas Neue', sans-serif;
+    letter-spacing: 0.02em;
+    line-height: 0.95;
+    font-weight: 400;
+  }
+  .mono{ font-family: 'JetBrains Mono', monospace; }
+  a{ color: inherit; text-decoration: none; }
+  .wrap{ max-width: 1180px; margin: 0 auto; padding: 0 28px; }
+
+  /* focus visibility */
+  a:focus-visible, button:focus-visible{
+    outline: 2px solid var(--green);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+  }
+
+  /* NAV */
+  nav{
+    position: sticky; top:0; z-index: 50;
+    backdrop-filter: blur(10px);
+    background: rgba(14,17,22,0.85);
+    border-bottom: 1px solid var(--border);
+  }
+  nav .wrap{ display:flex; align-items:center; justify-content: space-between; height: 72px; }
+  .logo{ font-family:'Bebas Neue'; font-size: 26px; letter-spacing: 0.03em; display:flex; align-items:center; gap:8px; }
+  .logo .dot{ width:10px; height:10px; border-radius:2px; background: linear-gradient(135deg, var(--wave), var(--orange)); }
+  .nav-links{ display:flex; gap: 32px; align-items:center; }
+  .nav-links a{ color: var(--text-dim); font-size: 14px; font-weight: 600; transition: color .2s; }
+  .nav-links a:hover{ color: var(--text); }
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center;
+    padding: 12px 22px; border-radius: 8px; font-weight: 700; font-size: 14px;
+    cursor:pointer; border: none; transition: transform .15s ease, opacity .15s ease;
+  }
+  .btn:hover{ transform: translateY(-1px); }
+  .btn-primary{ background: var(--text); color: var(--bg); }
+  .btn-ghost{ background: transparent; color: var(--text); border: 1px solid var(--border); }
+
+  /* HERO */
+  header.hero{ padding: 100px 0 60px; position:relative; }
+  .eyebrow{
+    display:inline-flex; align-items:center; gap:8px;
+    font-family:'JetBrains Mono'; font-size: 12px; color: var(--green);
+    border: 1px solid rgba(0,217,163,0.3); background: rgba(0,217,163,0.08);
+    padding: 6px 12px; border-radius: 100px; margin-bottom: 24px;
+  }
+  .hero-grid{ display:grid; grid-template-columns: 1.05fr 0.95fr; gap: 48px; align-items:center; }
+  .hero h1{ font-size: clamp(48px, 6.2vw, 84px); }
+  .hero h1 .accent{ color: var(--orange); }
+  .hero p.sub{ margin-top: 22px; font-size: 18px; color: var(--text-dim); max-width: 480px; }
+  .hero-cta{ display:flex; gap: 14px; margin-top: 34px; flex-wrap: wrap; }
+  .hero-cta .btn-primary{ padding: 15px 26px; font-size: 15px; }
+  .hero-cta .btn-ghost{ padding: 15px 26px; font-size: 15px; }
+  .trust{ margin-top: 28px; font-size: 13px; color: var(--text-dim); font-family:'JetBrains Mono'; }
+
+  /* DEMO VISUAL */
+  .demo-stage{ position: relative; display:flex; align-items:center; justify-content:center; height: 480px; }
+  .yt-frame{
+    position:absolute; left: -10px; width: 300px; aspect-ratio: 16/9;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px; opacity: 0.55; transform: rotate(-6deg);
+  }
+  .yt-frame .bar{ height: 8px; background: var(--surface-2); border-radius: 3px; margin-top: 8px; }
+  .yt-frame .bar:first-child{ margin-top: 12px; width: 60%; }
+  .arrow{
+    position: absolute; left: 250px; top: 50%; transform: translateY(-50%);
+    font-family:'JetBrains Mono'; font-size: 13px; color: var(--text-dim);
+    display:flex; flex-direction:column; align-items:center; gap:4px; z-index:2;
+  }
+  .arrow svg{ width: 46px; height: 20px; }
+  .phone{
+    position: relative; width: 232px; height: 460px; margin-left: auto;
+    background: linear-gradient(180deg, #1a1f27, #0c0f14);
+    border-radius: 34px; border: 1px solid var(--border);
+    box-shadow: 0 30px 80px -20px rgba(0,0,0,0.7);
+    padding: 10px; z-index: 3;
+  }
+  .phone-screen{
+    width:100%; height:100%; border-radius: 24px; overflow:hidden; position:relative;
+    background: linear-gradient(160deg, #1c2836 0%, #101418 60%, #1a1210 100%);
+  }
+  .phone-screen::before{
+    content:''; position:absolute; inset:0;
+    background: repeating-linear-gradient(115deg, rgba(255,255,255,0.02) 0 2px, transparent 2px 26px);
+  }
+  .caption-box{
+    position:absolute; bottom: 54px; left: 14px; right:14px;
+    text-align:center; font-weight: 800; font-size: 20px; line-height:1.25;
+  }
+  .caption-box span{ opacity: 0.35; transition: opacity .15s; }
+  .caption-box span.active{ opacity: 1; color: var(--orange); }
+  .rec-pill{
+    position:absolute; top:16px; left:16px; display:flex; align-items:center; gap:6px;
+    font-family:'JetBrains Mono'; font-size: 10px; color: #ff5c5c;
+  }
+  .rec-dot{ width:6px; height:6px; border-radius:50%; background:#ff5c5c; animation: pulse 1.4s infinite; }
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+  .clip-timer{
+    position:absolute; top:16px; right:16px; font-family:'JetBrains Mono'; font-size: 10px; color: var(--text-dim);
+  }
+
+  /* SECTIONS shared */
+  section{ padding: 100px 0; border-top: 1px solid var(--border); }
+  .section-head{ max-width: 620px; margin-bottom: 56px; }
+  .section-head .eyebrow{ margin-bottom: 18px; }
+  .section-head h2{ font-size: clamp(34px, 4.2vw, 52px); }
+  .section-head p{ color: var(--text-dim); margin-top: 14px; font-size: 16px; }
+
+  /* VIDEO DEMO */
+  .video-demo{ margin-bottom: 48px; }
+  .video-frame{
+    width:100%; max-width: 780px; margin: 0 auto; aspect-ratio: 16/9;
+    border-radius: 16px; overflow:hidden; border: 1px solid var(--border);
+    position: relative; background: var(--surface);
+  }
+  .video-thumb{
+    width:100%; height:100%; position:relative; display:flex; align-items:center; justify-content:center;
+    background:
+      radial-gradient(circle at 30% 20%, rgba(0,174,239,0.18), transparent 55%),
+      radial-gradient(circle at 75% 80%, rgba(255,122,0,0.18), transparent 55%),
+      linear-gradient(160deg, #1c2836 0%, #101418 60%, #1a1210 100%);
+  }
+  .video-thumb::before{
+    content:''; position:absolute; inset:0;
+    background: repeating-linear-gradient(115deg, rgba(255,255,255,0.02) 0 2px, transparent 2px 26px);
+  }
+  .play-btn{
+    width: 74px; height: 74px; border-radius: 50%; background: var(--text);
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+    z-index: 2; transition: transform .2s ease;
+  }
+  .play-btn:hover{ transform: scale(1.06); }
+  .play-btn svg{ margin-left: 3px; }
+  .video-badge{
+    position:absolute; bottom: 16px; left: 16px; font-size: 11px; color: var(--text-dim);
+    background: rgba(14,17,22,0.6); padding: 5px 10px; border-radius: 100px; z-index:2;
+  }
+  .video-frame iframe{ width:100%; height:100%; border:0; display:block; }
+
+  /* HOW IT WORKS */
+  .steps{ display:grid; grid-template-columns: repeat(3,1fr); gap: 24px; }
+  .step{
+    background: var(--surface); border:1px solid var(--border); border-radius: 14px;
+    padding: 32px 26px; position:relative; overflow:hidden;
+  }
+  .step .num{
+    font-family:'Bebas Neue'; font-size: 64px; color: transparent;
+    -webkit-text-stroke: 1.5px var(--border); position:absolute; top: 8px; right: 18px;
+  }
+  .step h3{ font-size: 24px; margin-bottom: 10px; margin-top: 6px; }
+  .step p{ color: var(--text-dim); font-size: 14.5px; }
+  .step .tag{ display:inline-block; font-family:'JetBrains Mono'; font-size: 11px; color: var(--wave); margin-bottom: 14px; }
+
+  /* VIDEO DEMO */
+  .video-demo{ margin-top: 56px; }
+  .video-frame{
+    position: relative; width: 100%; max-width: 780px; margin: 0 auto;
+    aspect-ratio: 16/9; border-radius: 16px; overflow: hidden;
+    background: linear-gradient(150deg, #1c2836 0%, #101418 55%, #1a1210 100%);
+    border: 1px solid var(--border);
+    display:flex; align-items:center; justify-content:center;
+    cursor: pointer;
+  }
+  .video-frame::before{
+    content:''; position:absolute; inset:0;
+    background: repeating-linear-gradient(115deg, rgba(255,255,255,0.02) 0 2px, transparent 2px 26px);
+  }
+  .video-frame iframe{ position:absolute; inset:0; width:100%; height:100%; border:0; }
+  .play-btn{
+    width: 76px; height: 76px; border-radius: 50%; border: none;
+    background: linear-gradient(135deg, var(--wave), var(--orange));
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; transition: transform .2s ease; z-index: 2;
+  }
+  .play-btn svg{ margin-left: 3px; }
+  .play-btn:hover{ transform: scale(1.06); }
+  .video-label{
+    position:absolute; bottom: 16px; left: 16px; font-size: 11px; color: var(--text-dim); z-index:2;
+  }
+  .video-caption{ text-align:center; color: var(--text-dim); font-size: 13.5px; margin-top: 16px; }
+
+  /* FEATURES */
+  .features{ display:grid; grid-template-columns: repeat(4,1fr); gap: 20px; }
+  .feature{ border: 1px solid var(--border); border-radius: 14px; padding: 26px 22px; background: var(--surface); transition: border-color .2s, transform .2s; }
+  .feature:hover{ border-color: var(--orange); transform: translateY(-3px); }
+  .feature .icon{ width: 38px; height:38px; border-radius:9px; display:flex; align-items:center; justify-content:center; margin-bottom: 18px; background: var(--surface-2); }
+  .feature h3{ font-family:'Manrope'; font-weight: 700; font-size: 16px; margin-bottom: 8px; }
+  .feature p{ font-size: 13.5px; color: var(--text-dim); }
+
+  /* PRICING */
+  .pricing-grid{ display:grid; grid-template-columns: repeat(3,1fr); gap: 22px; align-items: stretch; }
+  .plan{
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    padding: 30px 26px; display:flex; flex-direction:column;
+  }
+  .plan.featured{ border-color: var(--orange); background: linear-gradient(180deg, rgba(255,122,0,0.06), var(--surface) 30%); position:relative; }
+  .plan.featured::before{
+    content: 'LE PLUS CHOISI'; position:absolute; top:-11px; left: 26px;
+    background: var(--orange); color: #0E1116; font-family:'JetBrains Mono'; font-size: 10px;
+    padding: 4px 10px; border-radius: 100px; font-weight: 700;
+  }
+  .plan h3{ font-family:'Manrope'; font-weight: 800; font-size: 18px; }
+  .plan .price{ font-family:'Bebas Neue'; font-size: 46px; margin-top: 14px; }
+  .plan .price small{ font-family:'JetBrains Mono'; font-size: 13px; color: var(--text-dim); font-weight:400; }
+  .plan ul{ list-style:none; margin: 24px 0; flex:1; display:flex; flex-direction:column; gap: 12px; }
+  .plan li{ font-size: 13.5px; color: var(--text-dim); display:flex; gap: 10px; align-items:flex-start; }
+  .plan li::before{ content:'✓'; color: var(--green); font-weight: 700; }
+  .pay-row{ display:flex; gap: 8px; margin-top: 6px; }
+  .pay-btn{
+    flex:1; display:flex; align-items:center; justify-content:center; gap:6px;
+    padding: 11px 8px; border-radius: 8px; font-family:'JetBrains Mono'; font-size: 11.5px; font-weight:600;
+    border: 1px solid var(--border); background: var(--surface-2); color: var(--text); cursor:pointer;
+    transition: border-color .2s, transform .15s;
+  }
+  .pay-btn:hover{ transform: translateY(-1px); }
+  .pay-btn.wave:hover{ border-color: var(--wave); }
+  .pay-btn.orange:hover{ border-color: var(--orange); }
+  .pay-dot{ width:8px; height:8px; border-radius:50%; }
+  .pay-dot.wave{ background: var(--wave); }
+  .pay-dot.orange{ background: var(--orange); }
+
+  /* CTA FOOTER */
+  .cta-band{
+    border-top: 1px solid var(--border); padding: 110px 0; text-align:center;
+  }
+  .cta-band h2{ font-size: clamp(38px,5.5vw,64px); }
+  .cta-band p{ color: var(--text-dim); margin: 18px auto 34px; max-width: 480px; }
+
+  footer{ border-top: 1px solid var(--border); padding: 34px 0; }
+  footer .wrap{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px; }
+  footer .fine{ font-family:'JetBrains Mono'; font-size: 12px; color: var(--text-dim); }
+
+  /* MODAL */
+  .modal-overlay{
+    position: fixed; inset:0; background: rgba(8,10,13,0.75); backdrop-filter: blur(4px);
+    display:flex; align-items:center; justify-content:center; z-index: 100;
+    opacity:0; pointer-events:none; transition: opacity .2s ease; padding: 20px;
+  }
+  .modal-overlay.open{ opacity:1; pointer-events:auto; }
+  .modal{
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    padding: 36px 32px; width: 100%; max-width: 400px; position:relative;
+    transform: translateY(10px); transition: transform .2s ease;
+  }
+  .modal-overlay.open .modal{ transform: translateY(0); }
+  .modal-close{
+    position:absolute; top: 16px; right: 16px; background:none; border:none; color: var(--text-dim);
+    font-size: 16px; cursor:pointer; width: 30px; height:30px; border-radius: 8px;
+  }
+  .modal-close:hover{ background: var(--surface-2); color: var(--text); }
+  .modal-title{ font-family:'Manrope'; font-weight:800; font-size: 22px; margin-top: 14px; }
+  .modal-sub{ color: var(--text-dim); font-size: 14px; margin-top: 8px; margin-bottom: 22px; }
+  .modal-input{
+    width:100%; padding: 13px 14px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface-2); color: var(--text); font-family:'Manrope'; font-size: 14px;
+    margin-bottom: 12px;
+  }
+  .modal-input:focus{ outline: 2px solid var(--green); outline-offset: 1px; }
+  .modal-submit{ width:100%; }
+  .modal-fine{ font-size: 11.5px; color: var(--text-dim); margin-top: 16px; text-align:center; }
+  .modal-check{
+    width: 48px; height:48px; border-radius:50%; background: rgba(0,217,163,0.12); color: var(--green);
+    display:flex; align-items:center; justify-content:center; font-size: 22px; font-weight:700; margin-bottom: 6px;
+  }
+  .google-btn{
+    width:100%; display:flex; align-items:center; justify-content:center; gap: 10px;
+    padding: 12px 14px; border-radius: 8px; border: 1px solid var(--border); background: #fff; color: #1f1f1f;
+    font-family:'Manrope'; font-weight: 600; font-size: 14px; cursor:pointer; margin-top: 20px;
+    transition: box-shadow .2s ease;
+  }
+  .google-btn:hover{ box-shadow: 0 0 0 3px rgba(255,255,255,0.08); }
+  .modal-divider{
+    display:flex; align-items:center; gap: 12px; margin: 18px 0 16px;
+    color: var(--text-dim); font-size: 12px;
+  }
+  .modal-divider::before, .modal-divider::after{ content:''; flex:1; height:1px; background: var(--border); }
+
+  /* reveal on scroll */
+  .reveal{ opacity:0; transform: translateY(18px); transition: opacity .6s ease, transform .6s ease; }
+  .reveal.in{ opacity:1; transform:none; }
+
+  @media (max-width: 920px){
+    .hero-grid{ grid-template-columns: 1fr; }
+    .demo-stage{ height: 420px; margin-top: 20px; }
+    .yt-frame{ display:none; }
+    .arrow{ display:none; }
+    .phone{ margin: 0 auto; }
+    .steps, .pricing-grid{ grid-template-columns: 1fr; }
+    .features{ grid-template-columns: 1fr 1fr; }
+    .nav-links{ display:none; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <div class="logo"><span class="dot"></span>Clippo</div>
+    <div class="nav-links">
+      <a href="#how">Comment ça marche</a>
+      <a href="#features">Fonctionnalités</a>
+      <a href="#pricing">Tarifs</a>
+    </div>
+    <div style="display:flex; gap:10px;">
+      <button class="btn btn-primary js-signup">Commencer gratuitement</button>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <span class="eyebrow">● Sous-titres animés en temps réel</span>
+      <h1>Une vidéo YouTube.<br>Dix clips <span class="accent">qui percent.</span></h1>
+      <p class="sub">Colle un lien YouTube, et récupère en quelques minutes des extraits verticaux de 15 à 30 secondes, recadrés et sous-titrés mot par mot — prêts pour TikTok, Reels et Shorts.</p>
+      <div class="hero-cta">
+        <button class="btn btn-primary js-signup">Commencer gratuitement</button>
+        <a href="#how" class="btn btn-ghost">Voir comment ça marche</a>
+      </div>
+      <div class="trust">Paiement local via Wave &amp; Orange Money · Aucune carte bancaire requise</div>
+    </div>
+
+    <div class="demo-stage">
+      <div class="yt-frame">
+        <div class="bar" style="width:40%;"></div>
+        <div class="bar"></div>
+        <div class="bar" style="width:80%;"></div>
+      </div>
+      <div class="arrow">
+        <svg viewBox="0 0 46 20" fill="none"><path d="M0 10H42M42 10L34 3M42 10L34 17" stroke="currentColor" stroke-width="2"/></svg>
+        <span>9:16</span>
+      </div>
+      <div class="phone">
+        <div class="phone-screen">
+          <div class="rec-pill"><span class="rec-dot"></span>CLIP 03</div>
+          <div class="clip-timer mono">00:18 / 00:30</div>
+          <div class="caption-box mono" id="captionBox">
+            <span>ET</span> <span>DIEU</span> <span>DIT</span> <span>QUE</span> <span>LA</span> <span>LUMIÈRE</span> <span>SOIT</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<section id="how">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="eyebrow">Le processus</span>
+      <h2>Trois étapes. Zéro montage.</h2>
+      <p>Pas besoin de CapCut, de Premiere, ni de savoir monter. Clippo s'occupe du découpage, du cadrage et des sous-titres.</p>
+    </div>
+    <div class="video-demo reveal" id="videoDemo">
+      <div class="video-frame">
+        <div class="video-thumb">
+          <div class="play-btn" id="playBtn" role="button" tabindex="0" aria-label="Lire la démo">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none"><path d="M6 4L20 12L6 20V4Z" fill="#0E1116"/></svg>
+          </div>
+          <span class="video-badge mono">DÉMO · 0:47</span>
+        </div>
+      </div>
+    </div>
+    <div class="steps">
+      <div class="step reveal">
+        <span class="num">01</span>
+        <span class="tag">ÉTAPE 1</span>
+        <h3>Colle ton lien</h3>
+        <p>Ta vidéo YouTube (ou ton fichier) est analysée automatiquement — transcription complète en quelques minutes.</p>
+      </div>
+      <div class="step reveal">
+        <span class="num">02</span>
+        <span class="tag">ÉTAPE 2</span>
+        <h3>L'IA repère les pépites</h3>
+        <p>Punchlines, moments forts, révélations : le moteur identifie les passages avec le plus fort potentiel viral.</p>
+      </div>
+      <div class="step reveal">
+        <span class="num">03</span>
+        <span class="tag">ÉTAPE 3</span>
+        <h3>Récupère tes clips</h3>
+        <p>Format 9:16, recadrage intelligent, sous-titres animés mot par mot. Il ne reste qu'à publier.</p>
+      </div>
+    </div>
+
+    <div class="video-demo reveal" id="videoDemo">
+      <div class="video-frame" id="videoFrame">
+        <button class="play-btn" id="playBtn" aria-label="Lancer la démo vidéo">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none"><path d="M8 5v14l11-7-11-7z" fill="#0E1116"/></svg>
+        </button>
+        <div class="video-label mono">DÉMO · 0:47</div>
+      </div>
+      <p class="video-caption">Regarde Clippo transformer une vidéo de 20 minutes en clip prêt à publier.</p>
+    </div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="eyebrow">Fonctionnalités</span>
+      <h2>Fait pour la vitesse de publication.</h2>
+    </div>
+    <div class="features">
+      <div class="feature reveal">
+        <div class="icon">✍️</div>
+        <h3>Sous-titres dynamiques</h3>
+        <p>Animation mot par mot façon karaoké, avec mise en avant automatique des mots-clés.</p>
+      </div>
+      <div class="feature reveal">
+        <div class="icon">🎯</div>
+        <h3>Détection des moments forts</h3>
+        <p>L'IA analyse le rythme et le contenu pour isoler les passages à fort potentiel d'accroche.</p>
+      </div>
+      <div class="feature reveal">
+        <div class="icon">📱</div>
+        <h3>Recadrage automatique</h3>
+        <p>Suivi du sujet à l'image pour un passage propre du 16:9 au 9:16, sans zone morte.</p>
+      </div>
+      <div class="feature reveal">
+        <div class="icon">🌍</div>
+        <h3>Multilingue FR en priorité</h3>
+        <p>Transcription et sous-titrage optimisés pour le français, avec expressions locales reconnues.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="pricing">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="eyebrow">Tarifs</span>
+      <h2>Payer en FCFA, sans carte bancaire.</h2>
+      <p>Wave et Orange Money sont acceptés directement. Change ou annule à tout moment.</p>
+    </div>
+    <div class="pricing-grid">
+      <div class="plan reveal">
+        <h3>Découverte</h3>
+        <div class="price">0 <small>FCFA / mois</small></div>
+        <ul>
+          <li>3 clips par mois</li>
+          <li>Sous-titres dynamiques de base</li>
+          <li>Export avec filigrane</li>
+        </ul>
+        <div class="pay-row">
+          <button class="pay-btn" disabled style="opacity:.5; cursor:default;">Plan actuel</button>
+        </div>
+      </div>
+      <div class="plan featured reveal">
+        <h3>Créateur</h3>
+        <div class="price">9 900 <small>FCFA / mois</small></div>
+        <ul>
+          <li>60 clips par mois</li>
+          <li>Sous-titres animés avancés</li>
+          <li>Sans filigrane</li>
+          <li>Détection IA des meilleurs moments</li>
+        </ul>
+        <div class="pay-row">
+          <button class="pay-btn wave"><span class="pay-dot wave"></span>Wave</button>
+          <button class="pay-btn orange"><span class="pay-dot orange"></span>Orange Money</button>
+        </div>
+      </div>
+      <div class="plan reveal">
+        <h3>Studio</h3>
+        <div class="price">24 900 <small>FCFA / mois</small></div>
+        <ul>
+          <li>Clips illimités</li>
+          <li>Styles de sous-titres personnalisés</li>
+          <li>3 membres d'équipe</li>
+          <li>Support prioritaire</li>
+        </ul>
+        <div class="pay-row">
+          <button class="pay-btn wave"><span class="pay-dot wave"></span>Wave</button>
+          <button class="pay-btn orange"><span class="pay-dot orange"></span>Orange Money</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="cta-band">
+  <div class="wrap">
+    <h2 class="reveal">Ton prochain clip viral<br>attend une vidéo YouTube.</h2>
+    <p class="reveal">Commence gratuitement, aucune carte requise.</p>
+    <button class="btn btn-primary reveal js-signup" style="padding:16px 30px; font-size:15px;">Commencer maintenant</button>
+  </div>
+</div>
+
+<footer>
+  <div class="wrap">
+    <div class="logo" style="font-size:18px;"><span class="dot"></span>Clippo</div>
+    <div class="fine">© 2026 Clippo · Fait pour les créateurs francophones</div>
+  </div>
+</footer>
+
+<div class="modal-overlay" id="signupOverlay" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <button class="modal-close" id="modalClose" aria-label="Fermer">✕</button>
+    <div id="modalStep1">
+      <span class="eyebrow">● Accès anticipé</span>
+      <h3 id="modalTitle" class="modal-title">Commence gratuitement</h3>
+      <p class="modal-sub">3 clips offerts, aucune carte bancaire.</p>
+
+      <button type="button" id="googleBtn" class="google-btn">
+        <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.81.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.9v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.97 10.72A5.4 5.4 0 0 1 3.68 9c0-.6.1-1.18.29-1.72V4.95H.9A9 9 0 0 0 0 9c0 1.45.35 2.83.9 4.05l3.07-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.51.46 3.44 1.35l2.59-2.59C13.46.89 11.43 0 9 0A9 9 0 0 0 .9 4.95l3.07 2.33C4.68 5.16 6.66 3.58 9 3.58z"/></svg>
+        Continuer avec Google
+      </button>
+
+      <div class="modal-divider"><span>ou</span></div>
+
+      <form id="signupForm">
+        <input type="email" id="signupEmail" class="modal-input" placeholder="ton@email.com" required autocomplete="email">
+        <button type="submit" class="btn btn-primary modal-submit">Créer mon compte</button>
+      </form>
+      <p class="modal-fine">En continuant, tu acceptes d'être recontacté au sujet de Clippo.</p>
+    </div>
+    <div id="modalStep2" style="display:none;">
+      <div class="modal-check">✓</div>
+      <h3 class="modal-title">C'est noté !</h3>
+      <p class="modal-sub" id="modalConfirmText">On t'écrit dès l'ouverture de ton accès.</p>
+      <button class="btn btn-ghost modal-submit" id="modalDone">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ─── Connexion Google ───
+  // 👉 Remplace GOOGLE_CLIENT_ID par ton Client ID OAuth (Google Cloud Console → Identifiants)
+  const GOOGLE_CLIENT_ID = 'GOOGLE_CLIENT_ID';
+
+  document.getElementById('googleBtn').addEventListener('click', () => {
+    if (GOOGLE_CLIENT_ID === 'GOOGLE_CLIENT_ID') {
+      alert("Ajoute ton Client ID Google OAuth dans le script (variable GOOGLE_CLIENT_ID) pour activer la connexion.");
+      return;
+    }
+    // Nécessite le SDK Google Identity Services chargé (voir <script src="https://accounts.google.com/gsi/client">)
+    // et un backend pour vérifier le id_token renvoyé et créer la session utilisateur.
+    google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: (response) => {
+        // response.credential = le id_token JWT à envoyer à ton backend pour vérification
+        console.log('Google ID token reçu, à envoyer au backend :', response.credential);
+      }
+    });
+    google.accounts.id.prompt();
+  });
+
+  // ─── Modale d'inscription ───
+  const overlay = document.getElementById('signupOverlay');
+  const step1 = document.getElementById('modalStep1');
+  const step2 = document.getElementById('modalStep2');
+  const form = document.getElementById('signupForm');
+  const emailInput = document.getElementById('signupEmail');
+
+  function openModal(){
+    overlay.classList.add('open');
+    overlay.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => emailInput.focus(), 100);
+  }
+  function closeModal(){
+    overlay.classList.remove('open');
+    overlay.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+    step1.style.display = 'block';
+    step2.style.display = 'none';
+    form.reset();
+  }
+
+  document.querySelectorAll('.js-signup').forEach(btn => btn.addEventListener('click', openModal));
+  document.getElementById('modalClose').addEventListener('click', closeModal);
+  document.getElementById('modalDone').addEventListener('click', closeModal);
+  overlay.addEventListener('click', (e) => { if(e.target === overlay) closeModal(); });
+  document.addEventListener('keydown', (e) => { if(e.key === 'Escape' && overlay.classList.contains('open')) closeModal(); });
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    // 👉 Remplace cette partie par un vrai appel API (ex: POST vers ton backend / Mailchimp / Airtable)
+    document.querySelector('#modalConfirmText strong')?.remove();
+    document.getElementById('modalConfirmText').innerHTML = `On t'écrit à <strong>${emailInput.value}</strong> dès l'ouverture de ton accès.`;
+    step1.style.display = 'none';
+    step2.style.display = 'block';
+  });
+
+  // ─── Vidéo démo ───
+  // 👉 Remplace YOUTUBE_VIDEO_ID par l'ID de ta vidéo (dans youtube.com/watch?v=CET_ID_ICI)
+  const YOUTUBE_VIDEO_ID = 'YOUTUBE_VIDEO_ID';
+  const playBtn = document.getElementById('playBtn');
+  const videoFrame = document.querySelector('.video-frame');
+  function loadDemoVideo(){
+    if(YOUTUBE_VIDEO_ID === 'YOUTUBE_VIDEO_ID'){
+      alert("Ajoute ton ID de vidéo YouTube dans le script (variable YOUTUBE_VIDEO_ID) pour activer le lecteur.");
+      return;
+    }
+    videoFrame.innerHTML = `<iframe src="https://www.youtube.com/embed/${YOUTUBE_VIDEO_ID}?autoplay=1" title="Démo Clippo" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+  }
+  playBtn.addEventListener('click', loadDemoVideo);
+  playBtn.addEventListener('keydown', (e) => { if(e.key === 'Enter' || e.key === ' ') loadDemoVideo(); });
+
+  // caption karaoke cycle
+  const spans = document.querySelectorAll('#captionBox span');
+  let i = 0;
+  setInterval(() => {
+    spans.forEach(s => s.classList.remove('active'));
+    spans[i % spans.length].classList.add('active');
+    i++;
+  }, 420);
+
+  // scroll reveal
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if(e.isIntersecting){ e.target.classList.add('in'); obs.unobserve(e.target); } });
+  }, { threshold: 0.15 });
+  document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
+
+  // payment buttons (placeholder — to wire to real Wave/Orange Money API)
+  document.querySelectorAll('.pay-btn:not([disabled])').forEach(btn => {
+    btn.addEventListener('click', () => {
+      alert('Intégration paiement à connecter (Wave ou Orange Money API) — voir le backend fourni.');
+    });
+  });
+</script>
+
+</body>
+</html>
