@@ -191,5 +191,75 @@ router.post('/orange/notify', express.json(), (req, res) => {
 
   res.sendStatus(200);
 });
-
+// SENEPAY (Wave, Orange Money, Free Money via agrégateur)
+router.post('/senepay/checkout', requireAuth, async (req, res) => {
+  const { plan } = req.body;
+  const planInfo = PLANS[plan];
+  if (!planInfo) return res.status(400).json({ error: 'Plan invalide' });
+  const orderId = crypto.randomUUID();
+  try {
+    const response = await fetch('https://api.sene-pay.com/api/v1/checkout/sessions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Api-Key': process.env.SENEPAY_PUBLIC_KEY,
+        'X-Api-Secret': process.env.SENEPAY_SECRET_KEY,
+      },
+      body: JSON.stringify({
+        amount: planInfo.amount,
+        currency: 'XOF',
+        orderReference: orderId,
+        description: `Abonnement Clippo - ${planInfo.label}`,
+        returnUrl: `${process.env.FRONTEND_URL}/payment/success`,
+        cancelUrl: `${process.env.FRONTEND_URL}/payment/cancel`,
+        webhookUrl: `${process.env.BACKEND_URL}/api/payments/senepay/webhook`,
+        country: 'SN',
+        metadata: { user_id: req.user.sub, plan },
+        expiresInMinutes: 60,
+      }),
+    });
+    const session = await response.json();
+    if (!response.ok || !session.statut) {
+      return res.status(502).json({ error: 'Erreur SenePay', details: session });
+    }
+    db.prepare(
+      `INSERT INTO payments (id, user_id, provider, plan, amount, status, order_id)
+       VALUES (?, ?, 'senepay', ?, ?, 'pending', ?)`
+    ).run(crypto.randomUUID(), req.user.sub, plan, planInfo.amount, orderId);
+    res.json({ checkout_url: session.redirectUrl, token: session.token });
+  } catch (err) {
+    console.error('Erreur création session SenePay:', err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});// POST /api/payments/senepay/webhook   (appelé par SenePay)
+router.post(
+  '/senepay/webhook',
+  express.raw({ type: 'application/json' }),
+  (req, res) => {
+    const signatureHeader = req.headers['x-senepay-signature'];
+    if (!signatureHeader) {
+      return res.status(400).send('Signature manquante');
+    }
+    const expected = crypto
+      .createHmac('sha256', process.env.SENEPAY_WEBHOOK_SECRET)
+      .update(req.body.toString())
+      .digest('hex');
+    const valid =
+      expected.length === signatureHeader.length &&
+      crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signatureHeader));
+    if (!valid) {
+      return res.status(401).send('Signature invalide');
+    }
+    const event = JSON.parse(req.body.toString());
+    if (event.type === 'checkout.session.completed') {
+      const orderId = event.data.orderReference;
+      const payment = db.prepare('SELECT * FROM payments WHERE order_id = ?').get(orderId);
+      if (payment && payment.status !== 'completed') {
+        db.prepare(`UPDATE payments SET status = 'completed' WHERE order_id = ?`).run(orderId);
+        upgradeUserPlan(payment.user_id, payment.plan);
+      }
+    }
+    res.sendStatus(200);
+  }
+);
 module.exports = router;
