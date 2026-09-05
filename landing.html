@@ -481,7 +481,7 @@
       </div>
       <div class="plan featured reveal">
         <h3>Créateur</h3>
-        <div class="price">9 900 <small>FCFA / mois</small></div>
+        <div class="price">7 900 <small>FCFA / mois</small></div>
         <ul>
           <li>60 clips par mois</li>
           <li>Sous-titres animés avancés</li>
@@ -489,13 +489,12 @@
           <li>Détection IA des meilleurs moments</li>
         </ul>
         <div class="pay-row">
-          <button class="pay-btn wave"><span class="pay-dot wave"></span>Wave</button>
-          <button class="pay-btn orange"><span class="pay-dot orange"></span>Orange Money</button>
+          <button class="pay-btn senepay" onclick="payWithSenePay('createur')"><span class="pay-dot">💳</span> Payer avec Mobile Money</button>
         </div>
       </div>
       <div class="plan reveal">
         <h3>Studio</h3>
-        <div class="price">24 900 <small>FCFA / mois</small></div>
+        <div class="price">22 900 <small>FCFA / mois</small></div>
         <ul>
           <li>Clips illimités</li>
           <li>Styles de sous-titres personnalisés</li>
@@ -503,8 +502,7 @@
           <li>Support prioritaire</li>
         </ul>
         <div class="pay-row">
-          <button class="pay-btn wave"><span class="pay-dot wave"></span>Wave</button>
-          <button class="pay-btn orange"><span class="pay-dot orange"></span>Orange Money</button>
+          <button class="pay-btn senepay" onclick="payWithSenePay('studio')"><span class="pay-dot">💳</span> Payer avec Mobile Money</button>
         </div>
       </div>
     </div>
@@ -644,13 +642,38 @@
     entries.forEach(e => { if(e.isIntersecting){ e.target.classList.add('in'); obs.unobserve(e.target); } });
   }, { threshold: 0.15 });
   document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
-
-  // payment buttons (placeholder — to wire to real Wave/Orange Money API)
-  document.querySelectorAll('.pay-btn:not([disabled])').forEach(btn => {
-    btn.addEventListener('click', () => {
-      alert('Intégration paiement à connecter (Wave ou Orange Money API) — voir le backend fourni.');
-    });
-  });
+// payment: appel à SenePay via le backend
+      async function payWithSenePay(plan) {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          alert('Merci de te connecter avant de payer.');
+          return;
+        }
+        try {
+          const res = await fetch(`${'https://clippo-production-2c4f.up.railway.app'}/api/payments/senepay/checkout`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({ plan }),
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            alert('Erreur: ' + (data.error || 'Impossible de créer le paiement'));
+            return;
+          }
+          if (data.checkout_url) {
+            window.location.href = data.checkout_url;
+          } else {
+            alert('Paiement initié, mais aucune page de paiement reçue.');
+          }
+        } catch (err) {
+          console.error('Erreur paiement SenePay:', err);
+          alert('Erreur réseau, réessaie.');
+        }
+    }
+  
 </script>
 
 </body>
