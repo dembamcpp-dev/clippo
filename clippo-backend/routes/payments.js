@@ -8,8 +8,8 @@ const router = express.Router();
 
 // Tarifs en FCFA — doivent correspondre à ceux affichés sur la landing page
 const PLANS = {
-  createur: { amount: 9900, label: 'Créateur' },
-  studio: { amount: 24900, label: 'Studio' },
+  createur: { amount: 7900, label: 'Créateur' },
+  studio: { amount: 22900, label: 'Studio' },
 };
 
 function upgradeUserPlan(userId, plan) {
